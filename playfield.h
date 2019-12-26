@@ -24,6 +24,11 @@ class TetrisPlayfield
 		const float g_f = 0.07f;
 		const float g_k = -0.07f;
 		
+		/*
+		const float g_l_n = -0.42f; // 0.42f;
+		const float g_r_n = 0.35f; //0.82f;
+		const float g_b_n = -0.73f; // -0.14;
+		/**/
 		const float playfield_vertices[5][4][3] = {
 			{ {g_l, g_b, g_f}, {g_r, g_b, g_f}, {g_r, g_t, g_f}, {g_l, g_t, g_f} }, // front
 			{ {g_r, g_b, g_f}, {g_r, g_b, g_k}, {g_r, g_t, g_k}, {g_r, g_t, g_f} }, // left-side 
@@ -37,17 +42,14 @@ class TetrisPlayfield
 		}; 
 		
 		/*
-		const float g_l_n = 0.42f;
-		const float g_r_n = 0.84f;
-		
 		const float playfield_up_next[5][4][3] = {
-			{ {g_l_n, g_b, g_f}, {g_r_n, g_b, g_f}, {g_r_n, g_t, g_f}, {g_l_n, g_t, g_f} }, // front
-			{ {g_r_n, g_b, g_f}, {g_r_n, g_b, g_k}, {g_r_n, g_t, g_k}, {g_r_n, g_t, g_f} }, // left-side 
-			{ {g_l_n, g_b, g_k}, {g_l_n, g_b, g_f}, {g_l_n, g_t, g_f}, {g_l_n, g_t, g_k} }, // right-side
+			{ {g_l_n, g_b_n, g_f}, {g_r_n, g_b_n, g_f}, {g_r_n, g_t, g_f}, {g_l_n, g_t, g_f} }, // front
+			{ {g_r_n, g_b_n, g_f}, {g_r_n, g_b_n, g_k}, {g_r_n, g_t, g_k}, {g_r_n, g_t, g_f} }, // left-side 
+			{ {g_l_n, g_b_n, g_k}, {g_l_n, g_b_n, g_f}, {g_l_n, g_t, g_f}, {g_l_n, g_t, g_k} }, // right-side
 			{ {g_r_n, g_t, g_f}, {g_r_n, g_t, g_k}, {g_l_n, g_t, g_k}, {g_l_n, g_t, g_f} }, // top
-			{ {g_r_n, g_b, g_k}, {g_l_n, g_b, g_k}, {g_l_n, g_t, g_k}, {g_r_n, g_t, g_k} }  // back
+			{ {g_r_n, g_b_n, g_k}, {g_l_n, g_b_n, g_k}, {g_l_n, g_t, g_k}, {g_r_n, g_t, g_k} }  // back
 		};
-		*/
+		/**/
 	
 		// playfield state
 		bool occupied[20][10] = {

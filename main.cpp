@@ -83,6 +83,19 @@ void make_pieces()
 	glEndList();
 }
 
+void load_and_bind_textures()
+{
+/*
+	// load all textures here;
+	// load images here
+	g_camper_tex[FRONT] = load_and_bind_texture("../images/camper-front.png");
+	g_camper_tex[LEFT_SIDE] = load_and_bind_texture("../images/camper-left.png");
+	g_camper_tex[RIGHT_SIDE] = load_and_bind_texture("../images/camper-right.png");
+	g_camper_tex[TOP] = load_and_bind_texture("../images/camper-front.png");
+	g_camper_tex[BACK] = load_and_bind_texture("../images/camper-back.png");
+*/
+}
+
 void idle()
 {
     usleep(50000); // in microseconds
@@ -120,6 +133,20 @@ void create_playfield()
 			}
     glPopAttrib();
     
+    /*
+    // draw the up next block
+    glPushMatrix();
+			glColor3f(1.0f, 1.0f, 1.0f);
+			for (size_t s=0;s<5;s++)
+			{
+				glBegin(GL_QUADS);
+				for (size_t v=0;v<4;v++)
+					glVertex3fv(playfield.playfield_up_next[s][v]);
+				glEnd();
+			}
+    glPopMatrix();
+    /**/
+    
     // add locked in blocks
     if(update_locked) {
     	playfield.update_transforms();
@@ -135,6 +162,7 @@ void create_playfield()
 			glTranslatef(0.0f, 0.0f, 0.0f);
 		glPopMatrix();
 	}
+	
 }
 
 void collision_check() 
@@ -152,7 +180,7 @@ void collision_check()
 		// reset block position
 		drop = 0.0f;
 		move_h = 0.0f;
-		//block_choice = std::rand() % (7 +1);
+		block_choice = block_choice + 1;
 	}
 }
 
