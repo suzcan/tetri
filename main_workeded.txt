@@ -1,0 +1,443 @@
+#include <GL/glut.h> 
+
+#include <iostream>
+
+#include <stdlib.h>
+#include <stddef.h>
+#include <unistd.h> // for usleep
+
+//#include "load_and_bind_texture.h"
+
+bool g_spinning = false;
+int g_spin = 0;
+
+bool dropping = false;
+float drop = 0.0f;
+float drop_rate = 0.01f;
+
+float move = 0.0f;
+float move_v = 0.0f;
+float move_rate = 0.07f;
+
+float rotate = 0.0f;
+
+int block_choice = 0;
+
+enum van_sides_t {FRONT=0, LEFT_SIDE=1, RIGHT_SIDE=2, 
+                  TOP=3, BACK=4, NUM_SIDES=5};
+
+// playfield edges
+const float g_l = -0.42f;
+const float g_r = 0.35f;
+const float g_t = 0.7f;
+const float g_b = -0.73f;
+const float g_f = 0.07f;
+const float g_k = -0.07f;
+
+// target coordinates
+const float playfield_vertices[NUM_SIDES][4][3] = {
+	{ {g_l, g_b, g_f}, {g_r, g_b, g_f}, {g_r, g_t, g_f}, {g_l, g_t, g_f} }, // front
+	{ {g_r, g_b, g_f}, {g_r, g_b, g_k}, {g_r, g_t, g_k}, {g_r, g_t, g_f} }, // left-side 
+	{ {g_l, g_b, g_k}, {g_l, g_b, g_f}, {g_l, g_t, g_f}, {g_l, g_t, g_k} }, // right-side
+	{ {g_r, g_t, g_f}, {g_r, g_t, g_k}, {g_l, g_t, g_k}, {g_l, g_t, g_f} }, // top
+	{ {g_r, g_b, g_k}, {g_l, g_b, g_k}, {g_l, g_t, g_k}, {g_r, g_t, g_k} }  // back
+};
+
+const float playfield_floor[4][3] = {
+	{g_l, g_b, g_f}, {g_r, g_b, g_f}, {g_r, g_b, g_k}, {g_l, g_b, g_k}
+}; 
+
+// block global edges
+const float g_l_b = -0.035f; // left
+const float g_r_b = 0.035f; // right
+const float g_t_b = 0.035f; // top
+const float g_b_b = -0.035f; // bottom
+const float g_f_b = 0.035f; // front
+const float g_k_b = -0.035f; // forward
+
+const float block_vertices[NUM_SIDES][4][3] = {
+	{ {g_l_b, g_b_b, g_f_b}, {g_r_b, g_b_b, g_f_b}, {g_r_b, g_t_b, g_f_b}, {g_l_b, g_t_b, g_f_b} }, // front
+	{ {g_r_b, g_b_b, g_f_b}, {g_r_b, g_b_b, g_k_b}, {g_r_b, g_t_b, g_k_b}, {g_r_b, g_t_b, g_f_b} }, // left-side 
+	{ {g_l_b, g_b_b, g_k_b}, {g_l_b, g_b_b, g_f_b}, {g_l_b, g_t_b, g_f_b}, {g_l_b, g_t_b, g_k_b} }, // right-side
+	{ {g_r_b, g_t_b, g_f_b}, {g_r_b, g_t_b, g_k_b}, {g_l_b, g_t_b, g_k_b}, {g_l_b, g_t_b, g_f_b} }, // top
+	{ {g_r_b, g_b_b, g_k_b}, {g_l_b, g_b_b, g_k_b}, {g_l_b, g_t_b, g_k_b}, {g_r_b, g_t_b, g_k_b} }  // back
+};
+
+enum pieces_t {
+	O_BLOCK=0, T_BLOCK=1, S_BLOCK=2,
+	Z_BLOCK=3, I_BLOCK=4, L_BLOCK=5,
+	J_BLOCK=6, TYPES=7
+};
+
+size_t g_pieces = 0;
+
+struct block_t
+{
+	unsigned int tex;
+	float colour[4];
+	float position[3];
+	float direction[3];
+	
+	float block_vertices[NUM_SIDES][4][3] = {
+		{ {g_l_b, g_b_b, g_f_b}, {g_r_b, g_b_b, g_f_b}, {g_r_b, g_t_b, g_f_b}, {g_l_b, g_t_b, g_f_b} }, // front
+		{ {g_r_b, g_b_b, g_f_b}, {g_r_b, g_b_b, g_k_b}, {g_r_b, g_t_b, g_k_b}, {g_r_b, g_t_b, g_f_b} }, // left-side 
+		{ {g_l_b, g_b_b, g_k_b}, {g_l_b, g_b_b, g_f_b}, {g_l_b, g_t_b, g_f_b}, {g_l_b, g_t_b, g_k_b} }, // right-side
+		{ {g_r_b, g_t_b, g_f_b}, {g_r_b, g_t_b, g_k_b}, {g_l_b, g_t_b, g_k_b}, {g_l_b, g_t_b, g_f_b} }, // top
+		{ {g_r_b, g_b_b, g_k_b}, {g_l_b, g_b_b, g_k_b}, {g_l_b, g_t_b, g_k_b}, {g_r_b, g_t_b, g_k_b} }  // back
+	};
+};
+
+void make_block()
+{
+	block_t b;
+	b.colour[0] = 1.0f; // red
+	b.colour[1] = 1.0f; // green
+	b.colour[2] = 1.0f; // blue
+	b.colour[3] = 0.75f; // transparency
+	
+	b.position[0] = 0.5f; // x
+	b.position[1] = 0.5f; // y 
+	b.position[2] = 0.5f; // z
+	
+	b.direction[0] = 0; // x
+	b.direction[1] = 0; // y
+	b.direction[2] = 0; // z
+	
+	
+	for (size_t s=0;s<NUM_SIDES;s++)
+		{
+			//glBindTexture(GL_TEXTURE_2D, g_camper_tex[s]);
+			glColor3f(0.0f, 1.0f, 0.0f);
+			glBegin(GL_QUADS);
+				for (size_t i=0;i<4;i++)
+				{
+					// TODO: TEXTURES
+					glVertex3fv(b.block_vertices[s][i]);
+				}
+			glEnd();
+		}
+}
+
+void make_pieces()
+{
+	g_pieces = glGenLists(TYPES);
+	
+	glNewList(g_pieces + O_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(0.07f, 0.0f, 0.0f);
+			glPushMatrix();
+				make_block();
+				glTranslatef(0.0f, 0.07f, 0.0f);
+				glPushMatrix();
+					make_block();
+					glTranslatef(-0.07f, 0.0f, 0.0f);
+					glPushMatrix();
+						make_block();
+					glPopMatrix();
+				glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+	
+	glNewList(g_pieces + T_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(0.07f, 0.0f, 0.0f);
+			glPushMatrix();
+				make_block();
+				glTranslatef(0.0f, -0.07f, 0.0f);
+				glPushMatrix();
+					make_block();
+					glTranslatef(0.07f, 0.07f, 0.0f);
+					glPushMatrix();
+						make_block();
+					glPopMatrix();
+				glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+	
+	glNewList(g_pieces + S_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(0.07f, 0.0f, 0.0f);
+			glPushMatrix();
+				make_block();
+				glTranslatef(0.0f, 0.07f, 0.0f);
+				glPushMatrix();
+					make_block();
+					glTranslatef(0.07f, 0.0f, 0.0f);
+					glPushMatrix();
+						make_block();
+					glPopMatrix();
+				glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+	
+	glNewList(g_pieces + Z_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(0.07f, 0.0f, 0.0f);
+			glPushMatrix();
+				make_block();
+					glTranslatef(0.0f, -0.07f, 0.0f);
+					glPushMatrix();
+						make_block();
+						glTranslatef(0.07f, 0.0f, 0.0f);
+						glPushMatrix();
+							make_block();
+						glPopMatrix();
+					glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+	
+	glNewList(g_pieces + I_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(0.0f, 0.07f, 0.0f);
+			glPushMatrix();
+				make_block();
+				glTranslatef(0.0f, 0.07f, 0.0f);
+				glPushMatrix();
+					make_block();
+					glTranslatef(0.0f, 0.07f, 0.0f);
+					glPushMatrix();
+						make_block();
+					glPopMatrix();
+				glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+	
+	glNewList(g_pieces + L_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(-0.07f, 0.0f, 0.0f);
+			glPushMatrix();
+				make_block();
+				glTranslatef(0.0f, 0.07f, 0.0f);
+				glPushMatrix();
+					make_block();
+					glTranslatef(0.0f, 0.07f, 0.0f);
+					glPushMatrix();
+						make_block();
+					glPopMatrix();
+				glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+	
+	glNewList(g_pieces + J_BLOCK, GL_COMPILE);
+		glPushMatrix();
+			glTranslatef(0.0f, 0.0f, 0.0f);
+			make_block();
+			glTranslatef(0.07f, 0.0f, 0.0f);
+			glPushMatrix();
+				make_block();
+				glTranslatef(0.0f, 0.07f, 0.0f);
+				glPushMatrix();
+					make_block();
+					glTranslatef(0.0f, 0.07f, 0.0f);
+					glPushMatrix();
+						make_block();
+					glPopMatrix();
+				glPopMatrix();
+			glPopMatrix();
+		glPopMatrix();
+	glEndList();
+}
+
+void load_and_bind_textures()
+{
+/*
+	// load all textures here;
+	// load images here
+	g_camper_tex[FRONT] = load_and_bind_texture("../images/camper-front.png");
+	g_camper_tex[LEFT_SIDE] = load_and_bind_texture("../images/camper-left.png");
+	g_camper_tex[RIGHT_SIDE] = load_and_bind_texture("../images/camper-right.png");
+	g_camper_tex[TOP] = load_and_bind_texture("../images/camper-front.png");
+	g_camper_tex[BACK] = load_and_bind_texture("../images/camper-back.png");
+*/
+}
+
+void idle()
+{
+    usleep(50000); // in microseconds
+    if (g_spinning) {
+    	g_spin += 1;	
+	}
+	if (dropping) {
+		if(drop > -1.8f) drop = drop - drop_rate;		
+	}
+	glutPostRedisplay();
+}
+
+void playfield()
+{
+	// draw floor
+	glPushMatrix();
+		glColor3f(1.0f, 1.0f, 1.0f);
+		glBegin(GL_QUADS);
+			for (size_t i=0;i<4;i++)
+			{
+				glVertex3fv(playfield_floor[i]);
+			}
+		glEnd();
+	glPopMatrix();
+	
+	// draw playfield wire frame
+	glPushAttrib(GL_CURRENT_BIT);
+			glColor3f(1.0f, 1.0f, 1.0f);
+			for (size_t s=0;s<NUM_SIDES;s++)
+			{
+				glBegin(GL_LINE_LOOP);
+				for (size_t v=0;v<4;v++)
+					glVertex3fv(playfield_vertices[s][v]);
+				glEnd();
+			}
+    glPopAttrib();
+}
+
+float drop_stop[10] = {-1.8, -1.8, -1.8, -1.8, -1.8,
+					-1.8, -1.8, -1.8, -1.8, -1.8};
+
+//bool drop_check() = {}
+
+void display()
+{
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); 
+
+	// position and orient camera
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0, 0.25, 2.5, // eye position
+			  0, 0, 0.0, // reference point
+			  0, 1, 0  // up vector
+	);
+
+	glPushMatrix();
+		glRotatef(g_spin, 0, 1, 0);
+
+		// draw tetris play area
+		playfield();
+		
+		glTranslatef(0.0f + move, 1.1f + drop, 0.0f);
+		std::cout << "move: " << move << " drop: " << drop << std::endl;
+		// drop touches floor at dropped -1.8
+		// move -0.35 - 0.28
+		glRotatef(rotate, 0, 0, 1);
+		glCallList(g_pieces + block_choice);
+		
+
+
+	glPopMatrix();
+
+	glutSwapBuffers(); 
+}
+
+void keyboard(unsigned char key, int, int)
+{
+	switch (key)
+	{
+		case 'q': exit(1); break;
+
+		case ' ': 
+				g_spinning = !g_spinning;
+				break;
+		case 'd':
+				dropping = !dropping;
+				break;
+		case 'r':
+				if(rotate == 270) {
+					rotate = 0;
+				} else {
+					rotate = 90 + rotate;
+				}
+	}
+	glutPostRedisplay();
+}
+
+void special(int key, int, int)
+{
+	switch (key)
+	{
+		case GLUT_KEY_LEFT:
+			if (move > -0.34) move =  move + (move_rate * -1.0f); 
+			break;
+		case GLUT_KEY_RIGHT:
+			if (move < 0.20) move = move + move_rate; 
+			break;
+		case GLUT_KEY_UP: 
+			move_v = move_v + (move_rate * -1.0f);
+			break;
+		case GLUT_KEY_DOWN:
+			move_v = move_v + move_rate; 
+			break;
+	}
+
+	glutPostRedisplay(); // force a redraw
+} // glutSpecialFunc(special)
+
+
+void reshape(int w, int h)
+{
+	glViewport(0, 0, w, h); 
+	glMatrixMode(GL_PROJECTION); 
+	glLoadIdentity();
+	gluPerspective(40.0, 1.0f, 1.0, 5.0);
+
+	glutPostRedisplay();
+}
+
+void init()
+{
+
+	float light_ambient[] = {0.1, 0.1, 0.1, 1.0};
+	float light_diffuse[] = {0.5, 0.5, 0.5, 1.0};
+
+	glEnable(GL_DEPTH_TEST);
+	glShadeModel(GL_SMOOTH); 
+
+	// turn on blending and set a blending function
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
+	make_pieces();
+
+	GLenum error = glGetError();
+	if (error!=GL_NO_ERROR)
+		fprintf(stderr, "GL error %s\n", gluErrorString(error));
+	
+	glEnable(GL_DEPTH_TEST);
+}
+
+int main(int argc, char* argv[])
+{
+	glutInit(&argc, argv); 
+	glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGB|GLUT_DEPTH); 
+	glutInitWindowSize(640, 640); 
+	glutInitWindowPosition(50, 50); 
+	glutCreateWindow("Tetris"); 
+
+	init(); 
+
+	glutKeyboardFunc(keyboard); 
+	glutSpecialFunc(special);
+	glutDisplayFunc(display); 
+	glutReshapeFunc(reshape); 
+	
+	glutIdleFunc(idle);
+
+	glutMainLoop(); 
+
+	return 0; 
+}
