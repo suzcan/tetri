@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <unistd.h> // for usleep
+#include <math.h>
+#include <random>
+
+#define PI 3.14159265
 
 // game objects
 #include "playfield.h"
@@ -29,16 +33,23 @@ BlockBuilder builder;
 
 bool dropping = false;
 float drop = 0.0f;
-float speed_up = 0.0f;
-float drop_rate = 0.02f + speed_up;
+float speed_up = 1.0f;
+float drop_rate = 0.02f * speed_up;
 float move_h = 0.0f;
-float move_v = 0.0f;
 float move_rate = 0.07f;
 float rotate = 0.0f;
 
-int block_choice = 0;
-//std::cout << "Added transform x: " << get<0>(*it) << " y: " << get<1>(*it) << std::endl;
+list<int> next_blocks;
+int curr_block = 0;
 
+// random block generation variables
+const int range_from = 0;
+const int range_to = 6;
+std::random_device rand_dev;
+std::mt19937 generator(rand_dev());
+std::uniform_int_distribution<int> distr(range_from, range_to);
+
+int game_curr_state = 0;
 enum game_state {GAME_MENU=0, GAME_INTRO=1, GAME_ACTIVE=2, 
 				GAME_WIN=3, GAME_LOSE=4};
 
@@ -49,6 +60,23 @@ enum pieces_t {
 };
 
 size_t g_pieces = 0;
+unsigned int g_bitmap_text_handle = 0;
+
+void draw_text(const char* text)
+{
+	size_t len = strlen(text);
+	for (size_t i=0;i<len;i++)
+		glutStrokeCharacter(GLUT_STROKE_ROMAN, text[i]);
+}
+
+int get_new_block() {	
+	return distr(generator);
+}
+
+
+float to_rad(float degree) {
+	return (degree * PI/ 180.0);
+}
 
 void make_pieces()
 {
@@ -83,31 +111,6 @@ void make_pieces()
 	glEndList();
 }
 
-void load_and_bind_textures()
-{
-/*
-	// load all textures here;
-	// load images here
-	g_camper_tex[FRONT] = load_and_bind_texture("../images/camper-front.png");
-	g_camper_tex[LEFT_SIDE] = load_and_bind_texture("../images/camper-left.png");
-	g_camper_tex[RIGHT_SIDE] = load_and_bind_texture("../images/camper-right.png");
-	g_camper_tex[TOP] = load_and_bind_texture("../images/camper-front.png");
-	g_camper_tex[BACK] = load_and_bind_texture("../images/camper-back.png");
-*/
-}
-
-void idle()
-{
-    usleep(50000); // in microseconds
-    if (g_spinning) {
-    	g_spin += 1;	
-	}
-	if (dropping) {
-		if(drop > -1.8f) drop = drop - drop_rate;		
-	}
-	glutPostRedisplay();
-}
-
 void create_playfield()
 {	
 	// draw floor
@@ -133,23 +136,34 @@ void create_playfield()
 			}
     glPopAttrib();
     
-    /*
     // draw the up next block
     glPushMatrix();
 			glColor3f(1.0f, 1.0f, 1.0f);
 			for (size_t s=0;s<5;s++)
 			{
-				glBegin(GL_QUADS);
+				glBegin(GL_LINE_LOOP);
 				for (size_t v=0;v<4;v++)
 					glVertex3fv(playfield.playfield_up_next[s][v]);
 				glEnd();
 			}
     glPopMatrix();
-    /**/
+    
+    // draw upcoming blocks
+    float shift = 0.0f;
+    list<int>::iterator itt;
+    for(itt = next_blocks.begin(); itt != next_blocks.end(); ++itt)
+    {
+    	glPushMatrix();
+    		glTranslatef(0.68f, 0.47f - shift, 0.0f);
+    		glRotatef(90.0f, 0, 0, 1);
+	        glCallList(g_pieces + *itt);
+    	glPopMatrix();
+    	shift = shift + 0.25;
+	}
     
     // add locked in blocks
-    if(update_locked) {
-    	playfield.update_transforms();
+   	if(update_locked) {
+   		playfield.update_transforms();
     	update_locked = false;
 	}
 
@@ -162,26 +176,165 @@ void create_playfield()
 			glTranslatef(0.0f, 0.0f, 0.0f);
 		glPopMatrix();
 	}
+}
+
+float curr_block_pos[4][2] = {{0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}};
+
+void update_block_pos(float block_vertices[4][2])
+{
+	float x0 = move_h;
+	float y0 = drop;
+	curr_block_pos[0][0] = x0;
+	curr_block_pos[0][1] = y0;
+	for(size_t i = 1; i < 4; i++)
+	{
+		curr_block_pos[i][0] = curr_block_pos[i - 1][0] + block_vertices[i][0];
+		curr_block_pos[i][1] = curr_block_pos[i - 1][1] + block_vertices[i][1];
+	}
+	if (rotate > 0)
+	{
+		// get new points location by calculating rotation transformation
+		for(size_t i = 1; i < 4; i++)
+		{	
+			float sin_calc = sin(to_rad(rotate));
+			float cos_calc = cos(to_rad(rotate));
+			if(sin_calc < 1 && sin_calc > -1) sin_calc = 0.0f;
+			if(cos_calc < 1 && cos_calc > -1) cos_calc = 0.0f;
+
+			
+			float x = curr_block_pos[i][0];
+			float y = curr_block_pos[i][1];
+			
+			float x_calc = cos_calc * (x - x0) - sin_calc * (y-y0) + x0;
+			float y_calc = sin_calc * (x-x0) + cos_calc * (y-y0) + y0;
+			
+			curr_block_pos[i][0] = x_calc;
+			curr_block_pos[i][1] = y_calc;
+		}
+	}
+}
+
+void get_block_positions()
+{
+	switch(curr_block)
+	{
+		case(O_BLOCK):
+			update_block_pos(builder.o_block_vertices);
+			break;
+		case(T_BLOCK): 
+			update_block_pos(builder.t_block_vertices);
+			break;
+		case(S_BLOCK): 
+			update_block_pos(builder.s_block_vertices);
+			break;
+		case(Z_BLOCK): 
+			update_block_pos(builder.z_block_vertices);
+			break;
+		case(I_BLOCK): 
+			update_block_pos(builder.i_block_vertices);
+			break;
+		case(L_BLOCK): 
+			update_block_pos(builder.l_block_vertices);
+			break;
+		case(J_BLOCK): 
+			update_block_pos(builder.j_block_vertices);
+			break;
+	}
+}
+
+/*
+	Checks what rows need to be cleared and clears them 
+	by updating the occupied array
+*/
+void clear_row_check()
+{
+	bool recheck = true;
+	while(recheck)
+	{
+		recheck = false;
+		for(size_t i = 0; i < 20; i++)
+		{
+			bool clear_row = true;
+			for(size_t j = 0; j < 10 && clear_row; j++)
+			{
+				if(!playfield.occupied[i][j]) 
+				{
+					clear_row = false; 	
+				}
+			}
+			if(clear_row) 
+			{
+				recheck = true;
+				for(size_t k = i; k < 20; k++)
+				{
+					for(size_t z = 0; z < 10; z++)
+					{
+						playfield.occupied[k][z] = playfield.occupied[k+1][z];
+					}
+				}
+			}
+		}
+	}
+}
+
+
+/*
+	Checks if the current block will hit another block
+	to be locked into the playfield
+*/
+void collision_check() 
+{
+	get_block_positions();
+	bool collided = false;
+	for(size_t i = 0; i < 4; i++) 
+	{
+		int index_h = playfield.get_index_h(curr_block_pos[i][0], builder.block_size);
+		int index_v = playfield.get_index_v(curr_block_pos[i][1], builder.block_size);
+		
+		if(playfield.occupied[index_v - 1][index_h] || curr_block_pos[i][1] <= playfield.initial_stop) 
+		{
+			// if collision is true get coordinates of all blocks of the figure to lock in
+			for(size_t j = 0; j < 4; j++)
+			{
+				index_h = playfield.get_index_h(curr_block_pos[j][0], builder.block_size);
+				index_v = playfield.get_index_v(curr_block_pos[j][1], builder.block_size);
+				
+				playfield.occupied[index_v][index_h] = true;	
+			}
+			
+			update_locked = true;
+			collided = true;
+			break;
+		}
+	}
+	if(collided == true)
+	{
+		// reset the current block
+		drop = 0.0f;
+		move_h = 0.0f;
+		rotate = 0.0f;
+		// get next block and get a new random block
+		curr_block = next_blocks.front();
+		next_blocks.pop_front();
+		next_blocks.push_back(get_new_block());
+		// checks if the new block clears any rows
+		clear_row_check();
+	}
+}
+
+void create_menu()
+{
 	
 }
 
-void collision_check() 
+void create_instructions()
 {
-	int index_h = abs(int((move_h/0.07f) + 5));
-	float collision_height = playfield.drop_stop[index_h];
-	if(drop <= collision_height)
-	{
-		// update playfield state
-		int index_v = abs(int(((collision_height + 0.4f)/0.07) + 20));
-		playfield.occupied[index_v][index_h] = true;
-		playfield.drop_stop[index_h] = collision_height + 0.07;
-		update_locked = true;
-		
-		// reset block position
-		drop = 0.0f;
-		move_h = 0.0f;
-		block_choice = block_choice + 1;
-	}
+	
+}
+
+void fireworks()
+{
+	
 }
 
 void display()
@@ -196,24 +349,74 @@ void display()
 			  0, 1, 0  // up vector
 	);
 
-	glPushMatrix();
-		glRotatef(g_spin, 0, 1, 0);
-
-		// draw tetris play area
-		create_playfield();
-		
-		glTranslatef(0.0f + move_h, 1.1f + drop, 0.0f);
-		//std::cout << "move: " << move << " drop: " << drop << std::endl;
-		// drop touches floor at dropped -1.8
-		// move -0.35 - 0.28
-		glRotatef(rotate, 0, 0, 1);
-		glCallList(g_pieces + block_choice);
-
-	glPopMatrix();
-	
-	collision_check();
+	switch(game_curr_state)
+	{
+		case(GAME_MENU):
+			// TODO: 
+			// ADD TETRIS TITLE 
+			// SELECT BETWEEN STARTING GAME OR READING INSTRUCTIONS
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glPushMatrix();
+			//	glTranslatef(0.5f, 0.5f, 0.5f);
+			//	glScalef(10.0f, 10.0f, 1.0f);
+			//	glRotatef(30.0f, 0.0f, 0.0f, 1.0f);
+				
+				glRasterPos2i(0, 0);
+				draw_text("Hello, World!");
+			glPopMatrix();
+			break;
+		case(GAME_INTRO):
+			// TODO:
+			// ADD INSTRUCTIONS AND A BACK BOTTOM
+			// WIN CONDITION 
+			break;
+		case(GAME_ACTIVE):
+			//TODO: 
+			// SET DROP TO AUTOMATIC
+			// POSSIBLY ADD PAUSE
+			// INCREASE SPEED EACH TIME A ROW IS CLEARED
+			glPushMatrix();
+				glRotatef(g_spin, 0, 1, 0);
+				
+				//draw tetris play area
+				create_playfield();
+				
+				//block moving
+				glTranslatef(0.0f + move_h, 1.1f + drop, 0.0f);
+				glRotatef(rotate, 0, 0, 1);
+				glCallList(g_pieces + curr_block);
+			glPopMatrix();
+			
+			collision_check();
+			break;
+		case(GAME_WIN):
+			// WIN HAVING CLEARED 25 ROWS
+			// YOU WIN text
+			// FIREWORK PARTICLES
+			break;
+		case(GAME_LOSE):
+			// LOSE HAVING GONE OUT OF THE TOP
+			// GAME OVER TEXT
+			break;
+	}
 
 	glutSwapBuffers(); 
+}
+
+/*
+	Checks if the next move attempted is within the bounds
+	of the playfield.
+*/
+bool valid_move() 
+{
+	get_block_positions();
+	for(size_t i = 0; i < 4; i++) 
+	{
+		int index_h = playfield.get_index_h(curr_block_pos[i][0], builder.block_size);
+		int index_v = playfield.get_index_v(curr_block_pos[i][1], builder.block_size);
+		if (playfield.occupied[index_v][index_h] || curr_block_pos[i][0] < -0.36 || curr_block_pos[i][0] > 0.29) return false;
+	}
+	return true;
 }
 
 void keyboard(unsigned char key, int, int)
@@ -229,11 +432,15 @@ void keyboard(unsigned char key, int, int)
 				dropping = !dropping;
 				break;
 		case 'r':
+				int curr = rotate;
 				if(rotate == 270) {
 					rotate = 0;
+					if(!valid_move()) rotate = curr;
 				} else {
 					rotate = 90 + rotate;
+					if(!valid_move()) rotate = curr;
 				}
+				break;
 	}
 	glutPostRedisplay();
 }
@@ -243,16 +450,16 @@ void special(int key, int, int)
 	switch (key)
 	{
 		case GLUT_KEY_LEFT:
-			if (move_h > -0.34) move_h =  move_h + (move_rate * -1.0f); 
+			move_h =  move_h + (move_rate * -1.0f);
+			if (!valid_move()) move_h = move_h - (move_rate * -1.0f);
 			break;
 		case GLUT_KEY_RIGHT:
-			if (move_h < 0.20) move_h = move_h + move_rate; 
+			move_h = move_h + move_rate;
+			if (!valid_move()) move_h = move_h - move_rate; 
 			break;
 		case GLUT_KEY_UP: 
-			move_v = move_v + (move_rate * -1.0f);
 			break;
 		case GLUT_KEY_DOWN:
-			speed_up = 0.05f; 
 			break;
 	}
 	glutPostRedisplay();
@@ -269,7 +476,6 @@ void special_up(int key, int, int)
 	glutPostRedisplay();
 }
 
-
 void reshape(int w, int h)
 {
 	glViewport(0, 0, w, h); 
@@ -277,6 +483,25 @@ void reshape(int w, int h)
 	glLoadIdentity();
 	gluPerspective(40.0, 1.0f, 1.0, 5.0);
 
+	glutPostRedisplay();
+}
+
+void first_blocks()
+{
+	next_blocks.push_back(get_new_block());
+	next_blocks.push_back(get_new_block());
+	next_blocks.push_back(get_new_block());
+}
+
+void idle()
+{
+    usleep(50000); // in microseconds
+    if (g_spinning) {
+    	g_spin += 1;	
+	}
+	if (dropping) {
+		if(drop > -1.8f) drop = drop - drop_rate;		
+	}
 	glutPostRedisplay();
 }
 
@@ -294,6 +519,7 @@ void init()
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	make_pieces();
+	first_blocks();
 
 	GLenum error = glGetError();
 	if (error!=GL_NO_ERROR)

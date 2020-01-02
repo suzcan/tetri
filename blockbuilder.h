@@ -8,6 +8,7 @@ class BlockBuilder
 {
 	public:
 		BlockBuilder();
+		const float block_size = 0.07f;
 		
 		// block construction
 		const float g_l = -0.035f; // left

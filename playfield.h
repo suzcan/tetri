@@ -24,10 +24,10 @@ class TetrisPlayfield
 		const float g_f = 0.07f;
 		const float g_k = -0.07f;
 		
-		/*
-		const float g_l_n = -0.42f; // 0.42f;
-		const float g_r_n = 0.35f; //0.82f;
-		const float g_b_n = -0.73f; // -0.14;
+		
+		const float g_l_n = 0.42f;
+		const float g_r_n = 0.82f;
+		const float g_b_n = -0.14;
 		/**/
 		const float playfield_vertices[5][4][3] = {
 			{ {g_l, g_b, g_f}, {g_r, g_b, g_f}, {g_r, g_t, g_f}, {g_l, g_t, g_f} }, // front
@@ -41,7 +41,7 @@ class TetrisPlayfield
 			{g_l, g_b, g_f}, {g_r, g_b, g_f}, {g_r, g_b, g_k}, {g_l, g_b, g_k}
 		}; 
 		
-		/*
+		
 		const float playfield_up_next[5][4][3] = {
 			{ {g_l_n, g_b_n, g_f}, {g_r_n, g_b_n, g_f}, {g_r_n, g_t, g_f}, {g_l_n, g_t, g_f} }, // front
 			{ {g_r_n, g_b_n, g_f}, {g_r_n, g_b_n, g_k}, {g_r_n, g_t, g_k}, {g_r_n, g_t, g_f} }, // left-side 
@@ -52,7 +52,7 @@ class TetrisPlayfield
 		/**/
 	
 		// playfield state
-		bool occupied[20][10] = {
+		bool occupied[25][10] = {
 			{false, false, false, false, false, false, false, false, false, false}, // 1
 			{false, false, false, false, false, false, false, false, false, false}, 
 			{false, false, false, false, false, false, false, false, false, false}, 
@@ -72,7 +72,12 @@ class TetrisPlayfield
 			{false, false, false, false, false, false, false, false, false, false},
 			{false, false, false, false, false, false, false, false, false, false},
 			{false, false, false, false, false, false, false, false, false, false},
-			{false, false, false, false, false, false, false, false, false, false}  // 20
+			{false, false, false, false, false, false, false, false, false, false},  // 20
+			{false, false, false, false, false, false, false, false, false, false}, 
+			{false, false, false, false, false, false, false, false, false, false},
+			{false, false, false, false, false, false, false, false, false, false},
+			{false, false, false, false, false, false, false, false, false, false},
+			{false, false, false, false, false, false, false, false, false, false}   //25
 		};
 		
 		// used to create blocks on occupied space
@@ -81,10 +86,9 @@ class TetrisPlayfield
 		
 		// collision calculation
 		float initial_stop = -1.8f;
-		float drop_stop[10] = 
-			{initial_stop, initial_stop, initial_stop, initial_stop, initial_stop,
-			initial_stop, initial_stop, initial_stop, initial_stop, initial_stop};
-		void update_drop_stop();
+		
+		int get_index_h(float x_pos, float size_b);
+		int get_index_v(float x, float o_size);
 };
 
 #endif
