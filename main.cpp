@@ -10,12 +10,14 @@
 #include <unistd.h> // for usleep
 #include <math.h>
 #include <random>
+#include <string.h>
 
 #define PI 3.14159265
 
 // game objects
 #include "playfield.h"
 #include "blockbuilder.h"
+#include "menuitem.h"
 
 //#include "load_and_bind_texture.h"
 
@@ -27,6 +29,9 @@ TetrisPlayfield playfield;
 bool g_spinning = false;
 int g_spin = 0;
 bool update_locked = true;
+
+// menu global vars
+MenuItemBuilder menu;
 
 // block global vars
 BlockBuilder builder;
@@ -49,7 +54,7 @@ std::random_device rand_dev;
 std::mt19937 generator(rand_dev());
 std::uniform_int_distribution<int> distr(range_from, range_to);
 
-int game_curr_state = 0;
+int game_curr_state = 2;
 enum game_state {GAME_MENU=0, GAME_INTRO=1, GAME_ACTIVE=2, 
 				GAME_WIN=3, GAME_LOSE=4};
 
@@ -61,13 +66,6 @@ enum pieces_t {
 
 size_t g_pieces = 0;
 unsigned int g_bitmap_text_handle = 0;
-
-void draw_text(const char* text)
-{
-	size_t len = strlen(text);
-	for (size_t i=0;i<len;i++)
-		glutStrokeCharacter(GLUT_STROKE_ROMAN, text[i]);
-}
 
 int get_new_block() {	
 	return distr(generator);
@@ -346,8 +344,8 @@ void display()
 	glLoadIdentity();
 	gluLookAt(0, 0.25, 2.5, // eye position
 			  0, 0, 0.0, // reference point
-			  0, 1, 0  // up vector
-	);
+	  		  0, 1, 0  // up vector
+			);
 
 	switch(game_curr_state)
 	{
@@ -355,14 +353,17 @@ void display()
 			// TODO: 
 			// ADD TETRIS TITLE 
 			// SELECT BETWEEN STARTING GAME OR READING INSTRUCTIONS
-			glColor3f(1.0f, 0.0f, 0.0f);
+			gluOrtho2D(0, 1000, 0, 1000);
+			glColor3f(1.0f, 1.0f, 1.0f); 
 			glPushMatrix();
-			//	glTranslatef(0.5f, 0.5f, 0.5f);
-			//	glScalef(10.0f, 10.0f, 1.0f);
-			//	glRotatef(30.0f, 0.0f, 0.0f, 1.0f);
-				
-				glRasterPos2i(0, 0);
-				draw_text("Hello, World!");
+				glTranslatef(100.0f, 5.0f, 1.0f);
+				glScalef(0.9f, 0.9f, 1.0f); 
+				menu.draw_text("Start Game");
+			glPopMatrix();
+			glPushMatrix();
+				glTranslatef(105.0f, -100.0f, 1.0f);
+				glScalef(0.9f, 0.9f, 1.0f);
+				menu.draw_text("View Instructions");
 			glPopMatrix();
 			break;
 		case(GAME_INTRO):
