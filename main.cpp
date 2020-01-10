@@ -15,13 +15,18 @@
 #define PI 3.14159265
 
 // game objects
-#include "playfield.h"
-#include "blockbuilder.h"
-#include "menuitem.h"
+#include "playfield.cpp"
+#include "blockbuilder.cpp"
+#include "menuitem.cpp"
 
-//#include "load_and_bind_texture.h"
+#include "load_and_bind_texture.h"
 
 using namespace std;
+
+// game state vars
+int game_curr_state = 0;
+enum game_state {GAME_MENU=0, GAME_INTRO=1, GAME_ACTIVE=2, 
+				GAME_WIN=3, GAME_LOSE=4};
 
 // playfield global vars
 TetrisPlayfield playfield;
@@ -32,6 +37,8 @@ bool update_locked = true;
 
 // menu global vars
 MenuItemBuilder menu;
+int selection = 2;
+bool up = true;
 
 // block global vars
 BlockBuilder builder;
@@ -47,17 +54,6 @@ float rotate = 0.0f;
 list<int> next_blocks;
 int curr_block = 0;
 
-// random block generation variables
-const int range_from = 0;
-const int range_to = 6;
-std::random_device rand_dev;
-std::mt19937 generator(rand_dev());
-std::uniform_int_distribution<int> distr(range_from, range_to);
-
-int game_curr_state = 2;
-enum game_state {GAME_MENU=0, GAME_INTRO=1, GAME_ACTIVE=2, 
-				GAME_WIN=3, GAME_LOSE=4};
-
 enum pieces_t {
 	O_BLOCK=0, T_BLOCK=1, S_BLOCK=2,
 	Z_BLOCK=3, I_BLOCK=4, L_BLOCK=5,
@@ -68,12 +64,34 @@ size_t g_pieces = 0;
 unsigned int g_bitmap_text_handle = 0;
 
 int get_new_block() {	
-	return distr(generator);
+	return rand() % 7; //distr(generator);
 }
-
 
 float to_rad(float degree) {
 	return (degree * PI/ 180.0);
+}
+
+
+unsigned int g_block_tex = 0;
+unsigned int texture = 0;
+void load_and_bind_textures()
+{
+	// 340x340 px image for block  
+	switch(texture)
+	{
+		case 0: 
+			g_block_tex = load_and_bind_texture("./textures/green_block.png");
+			break;
+		case 1:
+			g_block_tex = load_and_bind_texture("./textures/block.png");
+			break;
+		case 2:
+			g_block_tex = load_and_bind_texture("./textures/tex3.png");
+			break;
+		case 3:
+			g_block_tex = load_and_bind_texture("./textures/thwomp.png");
+			break;
+	}
 }
 
 void make_pieces()
@@ -81,31 +99,31 @@ void make_pieces()
 	g_pieces = glGenLists(TYPES);
 	
 	glNewList(g_pieces + O_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.o_block_vertices);
+		builder.make_o_block(g_block_tex);
 	glEndList();
 	
 	glNewList(g_pieces + T_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.t_block_vertices);
+		builder.make_t_block(g_block_tex);
 	glEndList();
 	
 	glNewList(g_pieces + S_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.s_block_vertices);
+		builder.make_s_block(g_block_tex);
 	glEndList();
 	
 	glNewList(g_pieces + Z_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.z_block_vertices);
+		builder.make_z_block(g_block_tex);
 	glEndList();
 	
 	glNewList(g_pieces + I_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.i_block_vertices);
+		builder.make_i_block(g_block_tex);
 	glEndList();
 	
 	glNewList(g_pieces + L_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.l_block_vertices);
+		builder.make_l_block(g_block_tex);
 	glEndList();
 	
 	glNewList(g_pieces + J_BLOCK, GL_COMPILE);
-		builder.make_large_block(builder.j_block_vertices);
+		builder.make_j_block(g_block_tex);
 	glEndList();
 }
 
@@ -170,7 +188,7 @@ void create_playfield()
 	{
 		glPushMatrix();
 			glTranslatef(get<0>(*it), get<1>(*it), 0.0f);
-			builder.make_block(1.0f, 0.0f, 0.0f);
+			builder.make_block(g_block_tex, 1.0f, 0.0f, 0.0f);
 			glTranslatef(0.0f, 0.0f, 0.0f);
 		glPopMatrix();
 	}
@@ -178,6 +196,10 @@ void create_playfield()
 
 float curr_block_pos[4][2] = {{0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}};
 
+/*
+	Uses the drop and horizonal movement of the player to find the logical position of the other
+	pieces attached to the center block forming the piece
+*/
 void update_block_pos(float block_vertices[4][2])
 {
 	float x0 = move_h;
@@ -322,12 +344,36 @@ void collision_check()
 
 void create_menu()
 {
+
+	// ADD TETRIS TITLE 
+
+	// SELECT BETWEEN STARTING GAME OR READING INSTRUCTIONS
+	glPushMatrix();
+		glColor3f(1.0f, 0.0f, 0.0f);
+		if(!up) glTranslatef(0.0f, -0.15f, 0.0f);
+		menu.draw_arrow(); 
+	glPopMatrix();
+
+	// draw menu option texts
+	gluOrtho2D(0, 1000, 0, 1000); 
+	glColor3f(1.0f, 1.0f, 1.0f);  
+	glPushMatrix();
+		glTranslatef(100.0f, 5.0f, 1.0f);
+		glScalef(0.9f, 0.9f, 1.0f); 
+		menu.draw_text("Start Game");
+	glPopMatrix();
 	
+	glPushMatrix();
+		glTranslatef(105.0f, -100.0f, 1.0f);
+		glScalef(0.9f, 0.9f, 1.0f);
+		menu.draw_text("View Instructions");
+	glPopMatrix();
 }
 
 void create_instructions()
 {
-	
+	//builder.make_o_block(g_block_tex);
+	glCallList(g_pieces + curr_block);
 }
 
 void fireworks()
@@ -337,6 +383,7 @@ void fireworks()
 
 void display()
 {
+	load_and_bind_textures();
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT); 
 
 	// position and orient camera
@@ -351,38 +398,26 @@ void display()
 	{
 		case(GAME_MENU):
 			// TODO: 
-			// ADD TETRIS TITLE 
-			// SELECT BETWEEN STARTING GAME OR READING INSTRUCTIONS
-			gluOrtho2D(0, 1000, 0, 1000);
-			glColor3f(1.0f, 1.0f, 1.0f); 
-			glPushMatrix();
-				glTranslatef(100.0f, 5.0f, 1.0f);
-				glScalef(0.9f, 0.9f, 1.0f); 
-				menu.draw_text("Start Game");
-			glPopMatrix();
-			glPushMatrix();
-				glTranslatef(105.0f, -100.0f, 1.0f);
-				glScalef(0.9f, 0.9f, 1.0f);
-				menu.draw_text("View Instructions");
-			glPopMatrix();
+			create_menu();
 			break;
 		case(GAME_INTRO):
 			// TODO:
-			// ADD INSTRUCTIONS AND A BACK BOTTOM
+			// KEY BINDINGS (WASD || Arrow Keys)
 			// WIN CONDITION 
+			create_instructions();
 			break;
 		case(GAME_ACTIVE):
 			//TODO: 
-			// SET DROP TO AUTOMATIC
 			// POSSIBLY ADD PAUSE
 			// INCREASE SPEED EACH TIME A ROW IS CLEARED
+
 			glPushMatrix();
 				glRotatef(g_spin, 0, 1, 0);
 				
-				//draw tetris play area
+				// draw tetris play area
 				create_playfield();
 				
-				//block moving
+				// draw player block
 				glTranslatef(0.0f + move_h, 1.1f + drop, 0.0f);
 				glRotatef(rotate, 0, 0, 1);
 				glCallList(g_pieces + curr_block);
@@ -422,50 +457,107 @@ bool valid_move()
 
 void keyboard(unsigned char key, int, int)
 {
-	switch (key)
+	if(game_curr_state == GAME_ACTIVE)
 	{
-		case 'q': exit(1); break;
-
-		case ' ': 
+		switch (key)
+		{
+			case 'q': exit(1); break;
+			case ' ': 
+					g_spinning = !g_spinning;
+					break;
+			case 'd':
+					dropping = !dropping;
+					break;
+			case 'c':
+					if(texture == 3) 
+					{
+						texture = 0;
+					} else {
+						texture += 1;
+					}
+					load_and_bind_textures();
+					make_pieces();
+					break;
+			case 'r':
+					int curr = rotate;
+					if(rotate == 270) {
+						rotate = 0;
+						if(!valid_move()) rotate = curr;
+					} else {
+						rotate = 90 + rotate;
+						if(!valid_move()) rotate = curr;
+					}
+					break;
+		} 
+	} else if (game_curr_state == GAME_MENU)
+	{
+		switch(key)
+		{
+			case 'q': exit(1); break;
+			case ' ':
+				game_curr_state = selection;
+				break;
+		}
+	} else if (game_curr_state == GAME_INTRO)
+	{
+		switch (key)
+		{
+			case 'q': exit(1); break;
+			case 'b': 
+				game_curr_state = 0; 
+				selection = 2;
+				break;
+			case ' ': 
 				g_spinning = !g_spinning;
 				break;
-		case 'd':
-				dropping = !dropping;
-				break;
-		case 'r':
-				int curr = rotate;
-				if(rotate == 270) {
-					rotate = 0;
-					if(!valid_move()) rotate = curr;
-				} else {
-					rotate = 90 + rotate;
-					if(!valid_move()) rotate = curr;
-				}
-				break;
+		}
 	}
 	glutPostRedisplay();
 }
 
 void special(int key, int, int)
 {
-	switch (key)
+	if(game_curr_state == GAME_ACTIVE)
 	{
-		case GLUT_KEY_LEFT:
-			move_h =  move_h + (move_rate * -1.0f);
-			if (!valid_move()) move_h = move_h - (move_rate * -1.0f);
-			break;
-		case GLUT_KEY_RIGHT:
-			move_h = move_h + move_rate;
-			if (!valid_move()) move_h = move_h - move_rate; 
-			break;
-		case GLUT_KEY_UP: 
-			break;
-		case GLUT_KEY_DOWN:
-			break;
+		switch (key)
+		{
+			case GLUT_KEY_LEFT:
+				move_h =  move_h + (move_rate * -1.0f);
+				if (!valid_move()) move_h = move_h - (move_rate * -1.0f);
+				break;
+			case GLUT_KEY_RIGHT:
+				move_h = move_h + move_rate;
+				if (!valid_move()) move_h = move_h - move_rate; 
+				break;
+		}
+	} else if (game_curr_state == GAME_MENU)
+	{
+		switch (key)
+		{
+			case GLUT_KEY_UP:
+				up = true;
+				selection = 2;
+				dropping = true;
+				break;
+			case GLUT_KEY_DOWN:
+				up = false;
+				selection = 1;
+				break;
+		}
+	} else if (game_curr_state == GAME_INTRO)
+	{
+		switch (key)
+		{
+			case GLUT_KEY_UP:
+				break;
+			case GLUT_KEY_DOWN:
+				break;
+		}
 	}
 	glutPostRedisplay();
 }
 
+// TODO set speed up drop
 void special_up(int key, int, int)
 {
 	switch(key)
@@ -508,6 +600,7 @@ void idle()
 
 void init()
 {
+	srand(time(NULL));
 
 	float light_ambient[] = {0.1, 0.1, 0.1, 1.0};
 	float light_diffuse[] = {0.5, 0.5, 0.5, 1.0};
@@ -519,6 +612,7 @@ void init()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
+	load_and_bind_textures();
 	make_pieces();
 	first_blocks();
 

@@ -1,6 +1,6 @@
 #ifndef PNGLOAD_H
 
-#include "png.h"
+#include <png.h>
 #include <stdlib.h>
 
 int png_load(const char* file_name, 
@@ -133,8 +133,6 @@ int png_load(const char* file_name,
 
     free(row_pointers);
     fclose(fp);
-
-	fprintf(stderr, "\t texture image size is %d x %d\n", *width, *height);
 
 	return 1;
 }
