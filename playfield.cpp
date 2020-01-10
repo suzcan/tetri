@@ -116,7 +116,9 @@ int TetrisPlayfield::get_index_v(float x, float size)
 		return 18;
 	} else if (x >= (size * -7) && x < (size * -6)) {
 		return 19;
-	} else {
+	} else if (x >= (size * -6) && x < (size * -6)) {
 		return 20;
+	} else {
+		return 21;
 	}
 }

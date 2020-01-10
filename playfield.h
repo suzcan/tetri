@@ -17,8 +17,8 @@ class TetrisPlayfield
 		TetrisPlayfield();
 		
 		// playfield construction
-		const float g_l = -0.42f;
-		const float g_r = 0.35f;
+		const float g_l = -0.38f; // -0.42
+		const float g_r = 0.31f; // 0.35
 		const float g_t = 0.7f;
 		const float g_b = -0.73f;
 		const float g_f = 0.07f;
@@ -49,7 +49,6 @@ class TetrisPlayfield
 			{ {g_r_n, g_t, g_f}, {g_r_n, g_t, g_k}, {g_l_n, g_t, g_k}, {g_l_n, g_t, g_f} }, // top
 			{ {g_r_n, g_b_n, g_k}, {g_l_n, g_b_n, g_k}, {g_l_n, g_t, g_k}, {g_r_n, g_t, g_k} }  // back
 		};
-		/**/
 	
 		// playfield state
 		bool occupied[25][10] = {

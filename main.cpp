@@ -272,7 +272,7 @@ void clear_row_check()
 	while(recheck)
 	{
 		recheck = false;
-		for(size_t i = 0; i < 20; i++)
+		for(size_t i = 0; i < 21; i++)
 		{
 			bool clear_row = true;
 			for(size_t j = 0; j < 10 && clear_row; j++)
@@ -285,7 +285,7 @@ void clear_row_check()
 			if(clear_row) 
 			{
 				recheck = true;
-				for(size_t k = i; k < 20; k++)
+				for(size_t k = i; k < 21; k++)
 				{
 					for(size_t z = 0; z < 10; z++)
 					{
@@ -293,6 +293,20 @@ void clear_row_check()
 					}
 				}
 			}
+		}
+	}
+}
+
+/*
+	Checks if the blocks have been placed outside the play area
+	and changes game state to fail
+*/
+void check_game_over()
+{
+	for(int i = 0; i < 10; i++) {
+		if(playfield.occupied[21][i]) {
+			game_curr_state = GAME_LOSE;
+			g_spinning = true;
 		}
 	}
 }
@@ -339,6 +353,7 @@ void collision_check()
 		next_blocks.push_back(get_new_block());
 		// checks if the new block clears any rows
 		clear_row_check();
+		check_game_over();
 	}
 }
 
@@ -372,8 +387,7 @@ void create_menu()
 
 void create_instructions()
 {
-	//builder.make_o_block(g_block_tex);
-	glCallList(g_pieces + curr_block);
+	
 }
 
 void fireworks()
@@ -433,6 +447,16 @@ void display()
 		case(GAME_LOSE):
 			// LOSE HAVING GONE OUT OF THE TOP
 			// GAME OVER TEXT
+			glPushMatrix();
+				glRotatef(g_spin, 0, 1, 0);
+				
+				// draw tetris play area
+				create_playfield();
+				
+				// draw player block
+				glTranslatef(0.0f + move_h, 1.1f + drop, 0.0f);
+				glRotatef(rotate, 0, 0, 1);
+			glPopMatrix();
 			break;
 	}
 
@@ -510,6 +534,13 @@ void keyboard(unsigned char key, int, int)
 			case ' ': 
 				g_spinning = !g_spinning;
 				break;
+		}
+	} else if (game_curr_state == GAME_LOSE)
+	{
+		switch (key)
+		{
+		case 'q': exit(1); break;
+		case 'r': game_curr_state = 1; break;
 		}
 	}
 	glutPostRedisplay();
