@@ -27,7 +27,7 @@
 using namespace std;
 
 // game state vars
-int game_curr_state = 4;
+int game_curr_state = 0;
 enum game_state {GAME_MENU=0, GAME_INTRO=1, GAME_ACTIVE=2, 
 				GAME_WIN=3, GAME_LOSE=4};
 
@@ -50,7 +50,7 @@ BlockBuilder builder;
 
 bool dropping = false;
 float drop = 0.0f;
-float drop_rate = 0.05f;
+float drop_rate = 0.02f;
 float move_h = 0.0f;
 float move_rate = 0.07f;
 float rotate = 0.0f;
@@ -411,13 +411,64 @@ void create_menu()
 
 void create_instructions()
 {
-
+	glPushMatrix();
+		gluOrtho2D(0, 1000, 0, 1000);
+		glTranslatef(80.0f, 800.0f, 1.0f);
+		menu.draw_text("Instructions");
+		glPushMatrix();
+			glTranslatef(-850.0f, -200.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("Right and left arrow keys to move");			
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -300.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("'p' to pause the game");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -400.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("'q' to quit at anytime");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -500.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("'r' to rotate piece");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -600.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("'c' to change block design");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -700.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("spacebar to spin playfield");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -800.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("'v' to reset the view");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -900.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("'b' to go to menu");
+		glPopMatrix();
+		glPushMatrix();
+			glTranslatef(-850.0f, -1000.0f, 1.0f);
+			glScalef(0.5f, 0.5f, 1.0f);
+			menu.draw_text("Clear 3 rows to win the game!");
+		glPopMatrix();
+	glPopMatrix();
 }
 
-void flame(float x)
+/*
+	Draws out the particles created by the generator
+*/
+void stream()
 {
-	
-	p_generator.make_particles(12);
+	p_generator.make_particles(1);
 	static const float eye[3] = {0, 0.25, 2.5};
 	static const float z_axis[3] = {0, 0, 1};
 
@@ -437,12 +488,6 @@ void flame(float x)
 		for (size_t i=0;i<g_particles.size();i++)
 		{
 			glColor4fv(g_particles[i].colour);
-			glColor4f(
-				g_particles[i].colour[0],
-				g_particles[i].colour[1],
-				g_particles[i].colour[2],
-				g_particles[i].colour[3]
-			);
 			glPushMatrix();
 				glTranslatef(
 						g_particles[i].position[0] - 0.2,
@@ -472,12 +517,6 @@ void flame(float x)
 		}
 	}
     glDisable(GL_TEXTURE_2D);
-}
-
-
-void fireworks()
-{
-	
 }
 
 /*
@@ -562,7 +601,7 @@ void display()
 			break;
 		case(GAME_WIN):
 			// GAME WON screen
-			// FIREWORK PARTICLES
+			stream();
 			game_end_screen("GAME WON!");
 			break;
 		case(GAME_LOSE):
@@ -599,6 +638,10 @@ void keyboard(unsigned char key, int, int)
 			case 'q': exit(1); break;
 			case ' ': 
 					g_spinning = !g_spinning;
+					break;
+			case 'v':
+					g_spinning = false;
+					g_spin = 0;
 					break;
 			case 'p':
 					dropping = !dropping;
@@ -679,7 +722,10 @@ void keyboard(unsigned char key, int, int)
 				dropping = true;
 				reset_game();
 				break;
-			case 'b': game_curr_state = 0; break;
+			case 'b': 
+				reset_game();
+				game_curr_state = 0; 
+				break;
 		}
 	}
 	glutPostRedisplay();
@@ -747,6 +793,8 @@ void first_blocks()
 	next_blocks.push_back(get_new_block());
 }
 
+float fade_out = 0.0f;
+
 void idle()
 {
     usleep(50000); // in microseconds
@@ -757,27 +805,33 @@ void idle()
 		if(drop > -1.8f) drop = drop - drop_rate;		
 	}
 
-	for (size_t i=0;i<g_particles.size();i++)
+	if(g_particles[g_particles.size() - 1].colour[3] < 0.0f) {
+		g_particles = p_generator.make_particles(100);
+		fade_out = 0.0f;
+	}
+	for (size_t i=0;i<g_particles.size();i++) 
+	{
 		for (size_t j=0;j<3;j++) // for each dimension
 		{
 			g_particles[i].position[j] += g_particles[i].direction[j];
+			g_particles[i].colour[3] = g_particles[i].colour[3] - fade_out;
 
-			// if out of bounds then reverse direction 
-			if (g_particles[i].position[j] > 0.5f)
+			if (g_particles[i].position[j] > 0.7f)
 			{
-				g_particles[i].position[j] = 0.5f;
-				g_particles[i].direction[j] = -g_particles[i].direction[j];
-			}
-			else
-			if (g_particles[i].position[j] < -0.5f)
-			{
-				g_particles[i].position[j] = -0.5f;
-				g_particles[i].direction[j] = -g_particles[i].direction[j];
+				g_particles[i].direction[0] = (float(drand48()) - 0.5f)/20;
+				g_particles[i].direction[1] = (float(drand48()) - 0.5f)/20;
+				g_particles[i].direction[2] = (float(drand48()) - 0.5f)/20;
+				fade_out = 0.005f;
 			}
 		}
+	}
+
+
 
 	glutPostRedisplay();
 }
+
+
 
 void init()
 {
@@ -802,7 +856,7 @@ void init()
 	load_and_bind_textures();
 	make_pieces();
 	first_blocks();
-	g_particles = p_generator.make_particles(1000);
+	g_particles = p_generator.make_particles(300);
 }
 
 int main(int argc, char* argv[])

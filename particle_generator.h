@@ -27,7 +27,9 @@ class ParticleGenerator
         };
 
         unsigned char* blob_image(size_t size);
-        std::vector<ParticleGenerator::particle_t> make_particles(const size_t n, float x=0.0f, float y=0.0f);
+        std::vector<ParticleGenerator::particle_t> make_particles(const size_t n, 
+																float x=0.0f, 
+																float y=0.0f);
 };
 
 
