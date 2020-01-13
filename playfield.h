@@ -88,6 +88,10 @@ class TetrisPlayfield
 		
 		int get_index_h(float x_pos, float size_b);
 		int get_index_v(float x, float o_size);
+
+		void reset_playfield();
+
+		int clear_row_check();
 };
 
 #endif

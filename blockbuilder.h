@@ -34,6 +34,7 @@ class BlockBuilder
 			{0, edge}, {edge, edge}, {edge, 0}, {0, 0} // front
 		};
 		
+		// tetris pieces builders
 		float o_block_vertices[4][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.0f, 0.07f}, {-0.07f, 0.0f}};
 		float t_block_vertices[4][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.0f, -0.07f}, {0.07f, 0.07f}};
 		float s_block_vertices[4][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.0f, 0.07f}, {0.07f, 0.0f}};
@@ -41,9 +42,22 @@ class BlockBuilder
 		float i_block_vertices[4][2] = {{0.0f, 0.0f}, {0.0f, 0.07f}, {0.0f, 0.07f}, {0.0f, 0.07f}};
 		float l_block_vertices[4][2] = {{0.0f, 0.0f}, {-0.07f, 0.0f}, {0.0f, 0.07f}, {0.0f, 0.07f}};
 		float j_block_vertices[4][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.0f, 0.07f}, {0.0f, 0.07f}};
+
+		// title letters builders
+		float letter_t_vertices[11][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f},
+										{-0.14f, -0.07f}, {0.0f, -0.07f}, {0.0f, -0.07f}, {0.0f, -0.07f}, {0.0f, -0.07f}, {0.0f, -0.07f}};
+		float letter_e_vertices[11][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {-0.14f, -0.07f}, {0.0f, -0.07f},
+										{0.07f, 0.0f}, {0.07f, 0.0f}, {-0.14f, -0.07f}, {0.0f, -0.07f}, {0.07f, 0.0f}, {0.07f, 0.0f}};
+		float letter_r_vertices[11][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {-0.14f, -0.07f}, {0.14f, 0.0f},
+										{-0.14f, -0.07f}, {0.07f, 0.0f}, {-0.07f, -0.07f}, {0.14f, 0.0f}, {-0.14f, -0.07f}, {0.14f, 0.0f}};
+		float letter_i_vertices[11][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {-0.07f, -0.07f}, {0.0f, -0.07f},
+										{0.0f, -0.07f}, {-0.07f, -0.07f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f}};
+		float letter_s_vertices[11][2] = {{0.0f, 0.0f}, {0.07f, 0.0f}, {0.07f, 0.0f}, {-0.14f, -0.07f}, {0.0f, -0.07f},
+										{0.07f, 0.0f}, {0.07f, 0.0f}, {0.0f, -0.07f}, {0.0f, -0.07f}, {-0.07f, 0.0f}, {-0.07f, 0.0f}};
+	
 		
 		void make_block(unsigned int tex, float r=0.0f, float g=1.0f, float b=0.0f);
-		void make_large_block(float vertices[][2],unsigned int tex);
+		void make_large_block(float vertices[][2], unsigned int tex, int num=4);
 
 		void make_o_block(unsigned int tex);
 		void make_t_block(unsigned int tex);
@@ -53,6 +67,9 @@ class BlockBuilder
 		void make_l_block(unsigned int tex);
 		void make_j_block(unsigned int tex);
 
+
+		void make_letter(float vertices[][2], unsigned int tex);
+		void make_title(unsigned int tex);
 };
 
 #endif

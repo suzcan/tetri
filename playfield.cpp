@@ -122,3 +122,54 @@ int TetrisPlayfield::get_index_v(float x, float size)
 		return 21;
 	}
 }
+
+/*
+	Function empties playfield by setting all values inside of
+	occupied array to false
+*/
+void TetrisPlayfield::reset_playfield() {
+	for(int i = 0; i < 25; i++) {
+		for(int j = 0; j < 10; j++) {
+			occupied[i][j] = false;
+		}
+	}
+	update_transforms();
+}
+
+/*
+	Checks what rows need to be cleared and clears them 
+	by updating the occupied array
+*/
+int TetrisPlayfield::clear_row_check()
+{
+	int cleared = 0;
+	bool recheck = true;
+	while(recheck)
+	{
+		recheck = false;
+		for(size_t i = 0; i < 21; i++)
+		{
+			bool clear_row = true;
+			for(size_t j = 0; j < 10 && clear_row; j++)
+			{
+				if(!occupied[i][j]) 
+				{
+					clear_row = false; 	
+				}
+			}
+			if(clear_row) 
+			{
+				cleared++;
+				recheck = true;
+				for(size_t k = i; k < 21; k++)
+				{
+					for(size_t z = 0; z < 10; z++)
+					{
+						occupied[k][z] = occupied[k+1][z];
+					}
+				}
+			}
+		}
+	}
+	return cleared;
+}
